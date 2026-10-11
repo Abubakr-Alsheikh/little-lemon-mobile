@@ -1,5 +1,6 @@
 package com.example.littlelimonmobile
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,12 +24,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -37,13 +40,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.littlelimonmobile.ui.theme.LittleLemonCharcoal
 import com.example.littlelimonmobile.ui.theme.LittleLemonGreen
 import com.example.littlelimonmobile.ui.theme.LittleLemonYellow
 import com.example.littlelimonmobile.ui.theme.LittleLimonMobileTheme
 
 @Composable
-fun Onboarding(modifier: Modifier = Modifier) {
+fun Onboarding(navController: NavHostController, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val userPreferences = remember { UserPreferences(context) }
     var firstName by rememberSaveable { mutableStateOf("") }
     var lastName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
@@ -123,7 +130,25 @@ fun Onboarding(modifier: Modifier = Modifier) {
         }
 
         Button(
-            onClick = { /* Validation and navigation come in the next exercise */ },
+            onClick = {
+                if (firstName.isBlank() || lastName.isBlank() || email.isBlank()) {
+                    Toast.makeText(
+                        context,
+                        "Registration unsuccessful. Please enter all data.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    userPreferences.saveUser(
+                        User(firstName.trim(), lastName.trim(), email.trim())
+                    )
+                    Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT)
+                        .show()
+                    navController.navigate(Home.route) {
+                        // Remove Onboarding so Back from Home exits the app.
+                        popUpTo(Onboarding.route) { inclusive = true }
+                    }
+                }
+            },
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = LittleLemonYellow,
@@ -175,6 +200,6 @@ private fun OnboardingTextField(
 @Composable
 fun OnboardingPreview() {
     LittleLimonMobileTheme {
-        Onboarding()
+        Onboarding(navController = rememberNavController())
     }
 }
