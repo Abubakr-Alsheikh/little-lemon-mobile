@@ -3,6 +3,7 @@ package com.example.littlelimonmobile
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +17,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +49,7 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.example.littlelimonmobile.ui.theme.LittleLemonCharcoal
 import com.example.littlelimonmobile.ui.theme.LittleLemonGreen
+import com.example.littlelimonmobile.ui.theme.LittleLemonLightGray
 import com.example.littlelimonmobile.ui.theme.LittleLemonYellow
 import com.example.littlelimonmobile.ui.theme.LittleLimonMobileTheme
 import java.util.Locale
@@ -61,6 +71,22 @@ fun Home(navController: NavHostController) {
 
 @Composable
 private fun HomeContent(menuItems: List<MenuItemRoom>, onProfileClick: () -> Unit) {
+    var searchPhrase by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Unique category names, in the order they first appear in the menu
+    val categories = menuItems.map { it.category }.distinct()
+
+    var filteredItems = menuItems
+    if (selectedCategory != null) {
+        filteredItems = filteredItems.filter { it.category == selectedCategory }
+    }
+    if (searchPhrase.isNotBlank()) {
+        filteredItems = filteredItems.filter {
+            it.title.contains(searchPhrase.trim(), ignoreCase = true)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -68,7 +94,10 @@ private fun HomeContent(menuItems: List<MenuItemRoom>, onProfileClick: () -> Uni
     ) {
         Header(onProfileClick = onProfileClick)
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            HeroSection()
+            HeroSection(
+                searchPhrase = searchPhrase,
+                onSearchPhraseChange = { searchPhrase = it }
+            )
             Text(
                 text = "ORDER FOR DELIVERY!",
                 color = Color.Black,
@@ -76,7 +105,53 @@ private fun HomeContent(menuItems: List<MenuItemRoom>, onProfileClick: () -> Uni
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp)
             )
-            MenuItems(menuItems = menuItems)
+            MenuBreakdown(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                // Tapping the selected category again shows the full menu
+                onCategoryClick = { category ->
+                    selectedCategory = if (category == selectedCategory) null else category
+                }
+            )
+            if (filteredItems.isEmpty() && menuItems.isNotEmpty()) {
+                Text(
+                    text = "No dishes match your search.",
+                    color = LittleLemonCharcoal,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            MenuItems(menuItems = filteredItems)
+        }
+    }
+}
+
+@Composable
+private fun MenuBreakdown(
+    categories: List<String>,
+    selectedCategory: String?,
+    onCategoryClick: (String) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        for (category in categories) {
+            val isSelected = category == selectedCategory
+            Text(
+                text = category.replaceFirstChar { it.titlecase(Locale.US) },
+                color = if (isSelected) Color.White else LittleLemonGreen,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isSelected) LittleLemonGreen else LittleLemonLightGray)
+                    .clickable { onCategoryClick(category) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
         }
     }
 }
@@ -112,7 +187,7 @@ private fun Header(onProfileClick: () -> Unit) {
 }
 
 @Composable
-private fun HeroSection() {
+private fun HeroSection(searchPhrase: String, onSearchPhraseChange: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -154,6 +229,24 @@ private fun HeroSection() {
                     .clip(RoundedCornerShape(16.dp))
             )
         }
+        TextField(
+            value = searchPhrase,
+            onValueChange = onSearchPhraseChange,
+            placeholder = { Text("Enter search phrase") },
+            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(8.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = LittleLemonLightGray,
+                unfocusedContainerColor = LittleLemonLightGray,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = LittleLemonGreen
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp)
+        )
     }
 }
 
